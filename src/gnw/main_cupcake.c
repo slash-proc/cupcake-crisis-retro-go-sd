@@ -146,6 +146,8 @@ static void blit_frame(void)
 
     if (lcd)
         memcpy(lcd, g_fb_data, (size_t)FB_W * (size_t)FB_H * sizeof(uint16_t));
+    /* Volume / brightness / save HUD — must run after the frame is in the LCD buffer. */
+    common_ingame_overlay();
 }
 
 static void setup_hiscore_path(void)
@@ -173,7 +175,11 @@ static void cupcake_resume_after_blocking_input(common_emu_state_t *emu, uint16_
 
     if (pad) {
         odroid_input_read_gamepad(pad);
-        cupcake_input_from_odroid(pad, &g_buttons);
+        /* Menu release of PAUSE must not look like an in-game edge. */
+        if (pad->values[ODROID_INPUT_VOLUME])
+            g_buttons = 0;
+        else
+            cupcake_input_from_odroid(pad, &g_buttons);
         cupcake_buttons_sync(g_buttons);
     }
 
@@ -256,7 +262,28 @@ void app_main_cupcake(uint8_t load_state, uint8_t start_paused, int8_t save_slot
         draw_frame = common_emu_frame_loop();
 
         odroid_input_read_gamepad(&pad);
-        cupcake_input_from_odroid(&pad, &g_buttons);
+
+        /*
+         * PAUSE/SET (ODROID_INPUT_VOLUME) is the retro-go modifier for volume /
+         * brightness macros and the pause menu. Remember it before
+         * common_emu_input_loop(), which may clear the pad when a macro fires.
+         */
+        {
+            bool pause_modifier = pad.values[ODROID_INPUT_VOLUME] != 0;
+
+            input_t0 = HAL_GetTick();
+            common_emu_input_loop(&pad, options, &blit_frame);
+            input_ms = HAL_GetTick() - input_t0;
+            cupcake_resume_after_blocking_input(&common_emu_state, (uint16_t)audio_frames, &pad,
+                                                input_ms);
+            common_emu_input_loop_handle_turbo(&pad);
+
+            /* Map after input_loop so consumed macro keys never reach the game. */
+            if (pause_modifier)
+                g_buttons = 0;
+            else
+                cupcake_input_from_odroid(&pad, &g_buttons);
+        }
 
         if (s_frame_log < 5u) {
             cupcake_trace("frame %lu draw=%d buttons=0x%04x", (unsigned long)s_frame_log,
@@ -269,13 +296,6 @@ void app_main_cupcake(uint8_t load_state, uint8_t start_paused, int8_t save_slot
                           (unsigned)g_buttons);
             s_last_buttons = g_buttons;
         }
-
-        input_t0 = HAL_GetTick();
-        common_emu_input_loop(&pad, options, &blit_frame);
-        input_ms = HAL_GetTick() - input_t0;
-        cupcake_resume_after_blocking_input(&common_emu_state, (uint16_t)audio_frames, &pad,
-                                            input_ms);
-        common_emu_input_loop_handle_turbo(&pad);
 
         cupcake_set_buttons(g_buttons);
 
