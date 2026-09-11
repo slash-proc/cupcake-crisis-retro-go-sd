@@ -160,6 +160,8 @@ def build_release_notes(
     else:
         stem = Path(packed_name).stem
         lines.append(f"- Optional cover: `/covers/homebrew/{stem}.img`")
+        if (ROOT / "cupcake_assets.dat").is_file():
+            lines.append(f"- Audio sidecar: `/{sd_dir}/cupcake_assets.dat` (required)")
 
     return "\n".join(lines) + "\n"
 
@@ -218,9 +220,21 @@ def stage_release(
     stem = Path(packed_name).stem
     tag_slug = slug(tag)
 
+    zip_members: list[tuple[Path, str]] = [(sd_bin, f"{sd_dir}/{packed_name}")]
+
+    # Optional sidecars next to the GWHB binary (audio archive, license).
+    assets_dat = ROOT / "cupcake_assets.dat"
+    if assets_dat.is_file():
+        shutil.copy2(assets_dat, sd_root / assets_dat.name)
+        zip_members.append((sd_root / assets_dat.name, f"{sd_dir}/{assets_dat.name}"))
+    license_txt = ROOT / "assets" / "license.txt"
+    if license_txt.is_file():
+        shutil.copy2(license_txt, sd_root / "license.txt")
+        zip_members.append((sd_root / "license.txt", f"{sd_dir}/license.txt"))
+
     archive_name = f"{stem}-{tag_slug}.zip"
     archive_path = out_dir / archive_name
-    write_zip(archive_path, [(sd_bin, f"{sd_dir}/{packed_name}")])
+    write_zip(archive_path, zip_members)
 
     debug_archive_name = f"{stem}-{tag_slug}-debug.zip"
     debug_archive_path = out_dir / debug_archive_name

@@ -69,6 +69,8 @@ jobs:
             ${{ steps.meta.outputs.packed_bin }}
             ${{ steps.meta.outputs.target_elf }}
             ${{ steps.meta.outputs.target_map }}
+            cupcake_assets.dat
+            assets/license.txt
           if-no-files-found: error
 
   release:
