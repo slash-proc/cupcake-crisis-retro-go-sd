@@ -1,3 +1,4 @@
+#ifndef HOST_BUILD
 /*
  * Small local shims for APIs that are not trampolined by gw_core_bridge
  * (implemented in firmware headers but not exported on the ABI table).
@@ -48,3 +49,4 @@ void odroid_overlay_alert(const char *text)
     odroid_overlay_draw_text(8, 40, 304, text, 0xFFFF, 0x0000);
     HAL_Delay(2500);
 }
+#endif /* !HOST_BUILD */

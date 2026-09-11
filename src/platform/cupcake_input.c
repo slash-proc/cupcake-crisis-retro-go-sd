@@ -35,7 +35,7 @@ void cupcake_input_from_sdl_keyboard(const uint8_t *keys, uint16_t *buttons)
 
 #endif /* !CUPCAKE_GNW */
 
-#if defined(TARGET_GNW) || defined(LINUX_EMU)
+#if defined(TARGET_GNW) || defined(LINUX_EMU) || defined(HOST_BUILD)
 #include "odroid_input.h"
 
 void cupcake_input_from_odroid(const odroid_gamepad_state_t *pad, uint16_t *buttons)
@@ -59,7 +59,7 @@ void cupcake_input_from_odroid(const odroid_gamepad_state_t *pad, uint16_t *butt
     /* G&W B + TIME = Select — cycle demo level 0→1→2→0 (btnSelect). */
     if (pad->values[ODROID_INPUT_B] || pad->values[ODROID_INPUT_SELECT])
         b |= CUPCAKE_BTN_SELECT;
-#if !defined(CUPCAKE_GNW) && !defined(TARGET_GNW)
+#if !defined(CUPCAKE_GNW) && !defined(TARGET_GNW) && !defined(HOST_BUILD)
     /* G&W PAUSE/SET is retro-go menu + volume — do not map to in-game mute on device. */
     if (pad->values[ODROID_INPUT_VOLUME])
         b |= CUPCAKE_BTN_SOUND;

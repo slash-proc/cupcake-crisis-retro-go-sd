@@ -5,6 +5,9 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#if defined(HOST_BUILD)
+#include <sys/stat.h>
+#endif
 
 #include "main.h"
 #include "common.h"
@@ -30,6 +33,8 @@
 
 #ifndef HOST_BUILD
 #include "gw_core_bridge.h"
+#else
+#include "host_compat.h"
 #endif
 
 #define CUPCAKE_FPS         30
@@ -156,7 +161,15 @@ static void setup_hiscore_path(void)
 {
     char path[512];
 
+#if defined(HOST_BUILD)
+    {
+        int err = mkdir("host_saves", 0755);
+        (void)err; /* EEXIST is fine */
+    }
+    snprintf(path, sizeof path, "host_saves/cupcake_hiscores.dat");
+#else
     snprintf(path, sizeof path, "/data/homebrew/cupcake_hiscores.dat");
+#endif
     cupcake_hiscore_set_path(path);
 }
 

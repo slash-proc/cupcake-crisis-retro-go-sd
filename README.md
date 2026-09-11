@@ -31,6 +31,23 @@ make docker
 
 Produces `Cupcake.bin`.
 
+Host SDL preview (same `app_main`, embedded assets — no G&W flash cycle):
+
+```bash
+make host                       # SDL2 → ./cupcake_host
+make host HOST_SDL=3            # SDL3
+./cupcake_host                  # Esc / close window to quit
+```
+
+On macOS, if `pkg-config sdl2` fails:
+
+```bash
+export PKG_CONFIG_PATH="$(brew --prefix)/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
+```
+
+Controls: arrows = D-pad, `Z`/`X` = B/A, Enter = Start, Shift = Select.
+Scale with `HOST_SCALE=2` (default).
+
 Optional SD session trace (bring-up only):
 
 ```bash

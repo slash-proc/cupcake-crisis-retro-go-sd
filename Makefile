@@ -203,10 +203,6 @@ docker_shell:
 	$(DOCKER_RUN) bash
 
 #######################################
-# Host SDL — not wired (upstream has a dedicated PC build)
+# Host SDL (same app_main + embedded assets as device)
 #######################################
-.PHONY: host host_clean
-host host_clean:
-	$(V)$(ECHO) "Host SDL preview is not part of this GWHB port."
-	$(V)$(ECHO) "Use https://github.com/osirisad/retro-go-bart-simpsons-cupcake-crisis for PC/SDL."
-	@false
+include host/Makefile.host

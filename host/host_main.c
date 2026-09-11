@@ -18,7 +18,7 @@ int main(int argc, char **argv)
 {
     const char *title =
 #if defined(PROJECT_KIND_HOMEBREW)
-        "Retro-Go Homebrew (host)";
+        "Cupcake Crisis (host)";
 #else
         "Retro-Go Core (host)";
 #endif

@@ -439,8 +439,36 @@ void odroid_audio_set_sink(ODROID_AUDIO_SINK sink) { (void)sink; }
 ODROID_AUDIO_SINK odroid_audio_get_sink(void) { return ODROID_AUDIO_SINK_SPEAKER; }
 void odroid_audio_submit(short *stereoAudioBuffer, int frameCount)
 {
-    (void)stereoAudioBuffer;
-    (void)frameCount;
+    int16_t *dst;
+    int i;
+    int n;
+    uint8_t vol;
+
+    if (!stereoAudioBuffer || frameCount <= 0)
+        return;
+    if (common_emu_sound_loop_is_muted())
+        return;
+
+    dst = audio_get_active_buffer();
+    if (!dst)
+        return;
+
+    n = frameCount;
+    if (n > (int)audio_get_buffer_length())
+        n = (int)audio_get_buffer_length();
+
+    vol = common_emu_sound_get_volume();
+    /* >>4 matches cupcake_compat / GW emu ports (firmware volume stacks on top). */
+    for (i = 0; i < n; i++) {
+        int32_t sample = (int32_t)stereoAudioBuffer[i] * (int32_t)vol;
+
+        sample >>= 4;
+        if (sample > 32767)
+            sample = 32767;
+        if (sample < -32768)
+            sample = -32768;
+        dst[i] = (int16_t)sample;
+    }
 }
 
 /* --- Frame pacing --------------------------------------------------------- */
