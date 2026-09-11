@@ -38,7 +38,7 @@
 #define FB_H                HEIGHT
 
 static uint16_t g_buttons;
-static uint16_t g_fb_data[FB_W * FB_H];
+static uint16_t *g_draw_fb;
 static host_atlas_t g_host;
 static host_bezel_t g_bezel;
 static host_lcd_rect_t g_lcd_rect;
@@ -92,7 +92,8 @@ static int cupcake_cb_wrap(cupcake_cb_type_t type, const char *str_arg, int int_
 
     switch (type) {
     case CUPCAKE_CB_FRAME:
-        host_bezel_blit_rgb565(&g_bezel, g_fb_data, FB_W, FB_H);
+        if (g_draw_fb)
+            host_bezel_blit_rgb565(&g_bezel, g_draw_fb, FB_W, FB_H);
         return 0;
     case CUPCAKE_CB_SPR:
         if (s_spr_log < 24u) {
@@ -122,7 +123,9 @@ static int cupcake_cb_wrap(cupcake_cb_type_t type, const char *str_arg, int int_
             }
             s_spr_log++;
         }
-        host_draw_sprite_rgb565_fb(&g_host, g_fb_data, FB_W, FB_H, str_arg, int_arg0, int_arg1);
+        if (g_draw_fb)
+            host_draw_sprite_rgb565_fb(&g_host, g_draw_fb, FB_W, FB_H, str_arg, int_arg0,
+                                       int_arg1);
         return 0;
     case CUPCAKE_CB_BTN:
         return !!(g_buttons & (1u << int_arg0));
@@ -142,11 +145,10 @@ static int cupcake_cb_wrap(cupcake_cb_type_t type, const char *str_arg, int int_
 
 static void blit_frame(void)
 {
-    pixel_t *lcd = (pixel_t *)lcd_get_active_buffer();
-
-    if (lcd)
-        memcpy(lcd, g_fb_data, (size_t)FB_W * (size_t)FB_H * sizeof(uint16_t));
-    /* Volume / brightness / save HUD — must run after the frame is in the LCD buffer. */
+    /* Menu / overlay repaint: redraw the game into the active LCD buffer. */
+    g_draw_fb = (uint16_t *)lcd_get_active_buffer();
+    if (g_draw_fb)
+        cupcake_draw();
     common_ingame_overlay();
 }
 
@@ -238,7 +240,7 @@ void app_main_cupcake(uint8_t load_state, uint8_t start_paused, int8_t save_slot
 
     if (host_audio_init(gnw_assets_base()) != 0) {
         cupcake_trace("warn: host_audio_init failed (continuing muted)");
-        odroid_overlay_alert("Cupcake: audio disabled.\nCopy cupcake_assets.dat\nto /homebrews/");
+        odroid_overlay_alert("Cupcake: audio init failed.\nRebuild with assets/");
     } else {
         cupcake_trace("app_main: host_audio_init ok (ADPCM stream, rate=%d, pack_gain=%.2f)",
                       odroid_audio_sample_rate_get(), (double)CUPCAKE_GNW_PCM_PACK_GAIN);
@@ -300,12 +302,14 @@ void app_main_cupcake(uint8_t load_state, uint8_t start_paused, int8_t save_slot
         cupcake_set_buttons(g_buttons);
 
         cupcake_update();
-        cupcake_draw();
         host_audio_pump(odroid_audio_sample_rate_get() / CUPCAKE_FPS);
 
-        if (draw_frame)
-            blit_frame();
-        lcd_swap();
+        if (draw_frame) {
+            g_draw_fb = (uint16_t *)lcd_get_active_buffer();
+            cupcake_draw();
+            common_ingame_overlay();
+            lcd_swap();
+        }
         common_emu_sound_sync(false);
     }
 }

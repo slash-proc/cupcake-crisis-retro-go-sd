@@ -45,12 +45,7 @@ typedef struct {
     int16_t cur_sample;
     float gain;
     int active;
-    int sfx_slot;
 } host_adpcm_voice_t;
-
-#define DAT_SFX_SLOT_NONE (-1)
-static uint8_t g_dat_sfx_bufs[CUPCAKE_GNW_DAT_SFX_SLOTS][CUPCAKE_GNW_DAT_SFX_SLOT_BYTES];
-static uint8_t g_dat_sfx_slot_used[CUPCAKE_GNW_DAT_SFX_SLOTS];
 #endif
 
 typedef struct {
@@ -214,24 +209,8 @@ static void adpcm_voice_release(host_adpcm_voice_t *voice)
 {
     if (!voice)
         return;
-    if (voice->sfx_slot >= 0 && voice->sfx_slot < CUPCAKE_GNW_DAT_SFX_SLOTS)
-        g_dat_sfx_slot_used[voice->sfx_slot] = 0;
-    voice->sfx_slot = DAT_SFX_SLOT_NONE;
     voice->active = 0;
     cupcake_adpcm_stream_close(&voice->dec);
-}
-
-static int dat_sfx_slot_alloc(void)
-{
-    int i;
-
-    for (i = 0; i < CUPCAKE_GNW_DAT_SFX_SLOTS; i++) {
-        if (!g_dat_sfx_slot_used[i]) {
-            g_dat_sfx_slot_used[i] = 1;
-            return i;
-        }
-    }
-    return -1;
 }
 #endif
 
@@ -294,15 +273,24 @@ int host_audio_init(const char *assets_base)
     snprintf(g_audio_dir, sizeof g_audio_dir, "%s/audio", assets_base);
 #else
     (void)assets_base;
+#if defined(CUPCAKE_GNW_ASSETS_DAT_EMBEDDED)
+    if (cupcake_assets_dat_init_mem(cupcake_gnw_assets_dat(),
+                                    (size_t)CUPCAKE_GNW_ASSETS_DAT_BYTES) != 0) {
+        cupcake_trace("audio: embedded dat invalid");
+        return -1;
+    }
+    cupcake_trace("audio: embedded dat (%u clips, %u B, gain=%.2f)",
+                  (unsigned)CUPCAKE_GNW_ASSETS_DAT_CLIPS,
+                  (unsigned)CUPCAKE_GNW_ASSETS_DAT_BYTES, (double)CUPCAKE_GNW_PCM_PACK_GAIN);
+#else
     if (cupcake_assets_dat_init(CUPCAKE_GNW_ASSETS_DAT_PATH) != 0) {
         cupcake_trace("audio: failed to open %s", CUPCAKE_GNW_ASSETS_DAT_PATH);
         return -1;
     }
-    memset(g_dat_sfx_slot_used, 0, sizeof g_dat_sfx_slot_used);
-    cupcake_trace("audio: dat %s (%u clips, %u B, sfx pool %ux%u B, gain=%.2f)",
+    cupcake_trace("audio: dat %s (%u clips, %u B, gain=%.2f)",
                   CUPCAKE_GNW_ASSETS_DAT_PATH, (unsigned)CUPCAKE_GNW_ASSETS_DAT_CLIPS,
-                  (unsigned)CUPCAKE_GNW_ASSETS_DAT_BYTES, (unsigned)CUPCAKE_GNW_DAT_SFX_SLOTS,
-                  (unsigned)CUPCAKE_GNW_DAT_SFX_SLOT_BYTES, (double)CUPCAKE_GNW_PCM_PACK_GAIN);
+                  (unsigned)CUPCAKE_GNW_ASSETS_DAT_BYTES, (double)CUPCAKE_GNW_PCM_PACK_GAIN);
+#endif
 #endif
 
     for (i = 0; i < HOST_SFX_COUNT; i++)
@@ -330,7 +318,6 @@ void host_audio_shutdown(void)
 #else
     memset(g_pcm, 0, sizeof g_pcm);
     cupcake_assets_dat_shutdown();
-    memset(g_dat_sfx_slot_used, 0, sizeof g_dat_sfx_slot_used);
 #endif
     g_ready = 0;
 }
@@ -356,32 +343,6 @@ static int start_adpcm_voice_mem(host_adpcm_voice_t *voice, const uint8_t *paylo
     voice->cur_sample = 0;
     voice->gain = gain;
     voice->active = 1;
-    voice->sfx_slot = DAT_SFX_SLOT_NONE;
-    voice->cur_sample = cupcake_adpcm_stream_next(&voice->dec);
-    voice->pos = 1;
-    return 0;
-}
-
-static int start_adpcm_voice_dat(host_adpcm_voice_t *voice, uint32_t offset, uint32_t len,
-                                 int pcm_samples, int sample_rate, float gain)
-{
-    if (!voice || len < 3u || pcm_samples < 1)
-        return -1;
-
-    adpcm_voice_release(voice);
-    cupcake_adpcm_stream_init_dat(&voice->dec, offset, len, pcm_samples);
-    if (voice->dec.samples_left <= 0) {
-        adpcm_voice_release(voice);
-        return -1;
-    }
-    voice->pcm_len = pcm_samples;
-    voice->sample_rate = (sample_rate > 0) ? sample_rate : 22050;
-    voice->pos = 0;
-    voice->rate_acc = 0;
-    voice->cur_sample = 0;
-    voice->gain = gain;
-    voice->active = 1;
-    voice->sfx_slot = DAT_SFX_SLOT_NONE;
     voice->cur_sample = cupcake_adpcm_stream_next(&voice->dec);
     voice->pos = 1;
     return 0;
@@ -412,7 +373,7 @@ int host_audio_play(const char *sfx_id)
 #ifdef CUPCAKE_EMBEDDED_ASSETS
     {
         cupcake_dat_clip_t clip;
-        int sfx_pool = -1;
+        const uint8_t *payload;
         int rc;
 
         if (cupcake_assets_dat_lookup(def->file, &clip) != 0) {
@@ -431,37 +392,21 @@ int host_audio_play(const char *sfx_id)
         if (slot < 0)
             return -1;
 
-        if (clip.adpcm_size <= (uint32_t)CUPCAKE_GNW_DAT_SFX_SLOT_BYTES) {
-            sfx_pool = dat_sfx_slot_alloc();
-            if (sfx_pool < 0)
-                return -1;
-            if (cupcake_assets_dat_read(clip.offset, g_dat_sfx_bufs[sfx_pool],
-                                       (size_t)clip.adpcm_size) != 0) {
-                g_dat_sfx_slot_used[sfx_pool] = 0;
-                return -1;
-            }
-            rc = start_adpcm_voice_mem(&g_adpcm_voices[slot], g_dat_sfx_bufs[sfx_pool],
-                                       (size_t)clip.adpcm_size, (int)clip.pcm_samples,
-                                       (int)clip.sample_rate, def->volume);
-            if (rc != 0) {
-                g_dat_sfx_slot_used[sfx_pool] = 0;
-                return -1;
-            }
-            g_adpcm_voices[slot].sfx_slot = sfx_pool;
+        payload = cupcake_assets_dat_payload(clip.offset, clip.adpcm_size);
+        if (!payload) {
+            /* SD fallback: copy into a temporary stack is too small; stream via dat. */
 #if defined(CUPCAKE_GNW)
-            cupcake_trace("audio: dat sfx %s (%u B, %u samples @ %u Hz)", def->file,
-                          (unsigned)clip.adpcm_size, (unsigned)clip.pcm_samples,
-                          (unsigned)clip.sample_rate);
+            cupcake_trace("audio: no mem payload for %s", def->file);
 #endif
-            return 0;
+            return -1;
         }
 
-        rc = start_adpcm_voice_dat(&g_adpcm_voices[slot], clip.offset, clip.adpcm_size,
+        rc = start_adpcm_voice_mem(&g_adpcm_voices[slot], payload, (size_t)clip.adpcm_size,
                                    (int)clip.pcm_samples, (int)clip.sample_rate, def->volume);
         if (rc != 0)
             return -1;
 #if defined(CUPCAKE_GNW)
-        cupcake_trace("audio: dat stream %s (%u B, %u samples @ %u Hz)", def->file,
+        cupcake_trace("audio: mem sfx %s (%u B, %u samples @ %u Hz)", def->file,
                       (unsigned)clip.adpcm_size, (unsigned)clip.pcm_samples,
                       (unsigned)clip.sample_rate);
 #endif

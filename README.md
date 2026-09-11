@@ -12,10 +12,9 @@ Game logic and assets originate from the RetroFab simulation by Itizso
 | File | SD path |
 |------|---------|
 | `Cupcake.bin` | `/homebrews/Cupcake.bin` |
-| `cupcake_assets.dat` | `/homebrews/cupcake_assets.dat` |
 
-Both are required — graphics are embedded in the `.bin`; audio is streamed
-from the `.dat`. Optional cover override: `/covers/homebrew/Cupcake.img`.
+Graphics and audio are embedded in the `.bin` — no sidecar `.dat` needed.
+Optional cover override: `/covers/homebrew/Cupcake.img`.
 
 When redistributing builds, include `assets/license.txt` (RetroFab
 CC-BY-NC-ND terms).
@@ -30,7 +29,7 @@ make                    # PROJECT_KIND=homebrew is the default
 make docker
 ```
 
-Produces `Cupcake.bin` and `cupcake_assets.dat`.
+Produces `Cupcake.bin`.
 
 Optional SD session trace (bring-up only):
 

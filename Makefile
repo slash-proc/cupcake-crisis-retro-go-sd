@@ -18,10 +18,10 @@ CORE_ENTRY := app_main
 GNW_CORE_SDK ?= sdk
 BUILD_DIR ?= build/$(PROJECT_KIND)
 
-# Generated embedded RGB565 + cupcake_data.h (from tools/bundle_assets.py).
+# Generated embedded RGB565 + ADPCM archive (from tools/bundle_assets.py).
 CUPCAKE_DATA_C := $(BUILD_DIR)/cupcake_data.c
 CUPCAKE_DATA_H := $(BUILD_DIR)/cupcake_data.h
-ASSETS_DAT     := cupcake_assets.dat
+ASSETS_DAT     := $(BUILD_DIR)/cupcake_assets.dat
 BUNDLE_PY      := tools/bundle_assets.py
 ASSETS_DIR     := assets
 COVER_SRC      := assets/screen.jpg
@@ -97,17 +97,17 @@ PACK_HOMEBREW := $(GNW_CORE_SDK)/tools/pack_homebrew.py
 CORE_VERSION ?= $(shell git describe --tags --dirty 2>/dev/null || echo NOTAG)
 
 #######################################
-# Asset bundle (RGB565 embed + ADPCM .dat)
+# Asset bundle (RGB565 + ADPCM embedded in cupcake_data.c)
 #######################################
 .PHONY: bundle-assets
 
-bundle-assets: $(CUPCAKE_DATA_C) $(ASSETS_DAT)
+bundle-assets: $(CUPCAKE_DATA_C)
 
 $(CUPCAKE_DATA_C) $(CUPCAKE_DATA_H) $(ASSETS_DAT): $(BUNDLE_PY) \
 		$(ASSETS_DIR)/screen.jpg $(ASSETS_DIR)/sprites-color.png \
 		src/platform/host_audio_catalog.c \
 		$(wildcard $(ASSETS_DIR)/audio/*.wav)
-	$(V)$(ECHO) [ BUNDLE ] embedded graphics + $(ASSETS_DAT)
+	$(V)$(ECHO) [ BUNDLE ] embedded graphics + audio → $(CUPCAKE_DATA_C)
 	$(V)mkdir -p $(BUILD_DIR)
 	$(V)python3 $(BUNDLE_PY) \
 		--assets $(ASSETS_DIR) \
@@ -140,21 +140,21 @@ canvas.save('$(COVER_JPG)', 'JPEG', quality=75, optimize=True); \
 sz=Path('$(COVER_JPG)').stat().st_size; \
 assert sz <= 10*1024, f'cover too big: {sz}'"
 
-pack: $(TARGET_BIN) $(COVER_JPG) $(ASSETS_DAT) $(LICENSE_TXT)
+pack: $(TARGET_BIN) $(COVER_JPG) $(LICENSE_TXT)
 	$(V)$(ECHO) [ PACK GWHB ] $(PACKED_BIN) version=$(CORE_VERSION)
 	$(V)python3 $(PACK_HOMEBREW) \
 		--elf $(TARGET_ELF) --bin $(TARGET_BIN) \
 		--name "$(HB_NAME)" --version "$(CORE_VERSION)" \
 		--cover $(COVER_JPG) \
 		--out $(PACKED_BIN)
-	$(V)$(ECHO) "Install: $(PACKED_BIN) + $(ASSETS_DAT) → /homebrews/"
+	$(V)$(ECHO) "Install: $(PACKED_BIN) → /homebrews/ (audio embedded)"
 	$(V)$(ECHO) "Include $(LICENSE_TXT) when redistributing (RetroFab CC-BY-NC-ND)."
 
 all: pack
 
 # Read-only helpers for CI / scripts.
 .PHONY: print-PROJECT_KIND print-PACKED_BIN print-CORE_NAME print-DOCKER_IMAGE \
-	print-TARGET_ELF print-TARGET_MAP print-CORE_VERSION print-ASSETS_DAT
+	print-TARGET_ELF print-TARGET_MAP print-CORE_VERSION
 print-PROJECT_KIND:
 	@echo $(PROJECT_KIND)
 print-PACKED_BIN:
@@ -169,12 +169,10 @@ print-TARGET_MAP:
 	@echo $(BUILD_DIR)/$(CORE_NAME)_core.map
 print-CORE_VERSION:
 	@echo $(CORE_VERSION)
-print-ASSETS_DAT:
-	@echo $(ASSETS_DAT)
 
 clean::
-	$(V)rm -f $(PACKED_BIN) $(ASSETS_DAT) $(COVER_JPG)
-	$(V)rm -f $(CUPCAKE_DATA_C) $(CUPCAKE_DATA_H)
+	$(V)rm -f $(PACKED_BIN) $(COVER_JPG)
+	$(V)rm -f $(CUPCAKE_DATA_C) $(CUPCAKE_DATA_H) $(ASSETS_DAT)
 
 #######################################
 # Docker

@@ -21,9 +21,11 @@ attached to the release:
 ### Added
 
 - Port Cupcake Crisis as a GWHB homebrew on the Retro-Go SD template
-  (ABI v2 / `gw_core_bridge`, embedded RGB565 art, ADPCM sidecar).
+  (ABI v2 / `gw_core_bridge`, embedded RGB565 art + ADPCM audio).
 
 ### Changed
 
-- Package layout: `/homebrews/Cupcake.bin` + `/homebrews/cupcake_assets.dat`
-  (replaces the older custom overlay linker / ABI v1 stubs).
+- Package layout: single `/homebrews/Cupcake.bin` (audio embedded; no
+  `cupcake_assets.dat` sidecar).
+- Draw directly into the LCD buffer and play ADPCM from the embedded
+  archive so the audio blob fits in RAM_EMU.

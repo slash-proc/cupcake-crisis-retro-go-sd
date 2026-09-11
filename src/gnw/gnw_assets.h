@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-/* SD sidecar for ADPCM clips (sibling of the GWHB .bin under /homebrews/). */
+/* SD sidecar for ADPCM clips (legacy fallback when not embedded). */
 #ifndef CUPCAKE_GNW_ASSETS_DAT_PATH
 #define CUPCAKE_GNW_ASSETS_DAT_PATH "/homebrews/cupcake_assets.dat"
 #endif
