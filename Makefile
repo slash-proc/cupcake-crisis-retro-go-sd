@@ -25,6 +25,8 @@ ASSETS_DAT     := $(BUILD_DIR)/cupcake_assets.dat
 BUNDLE_PY      := tools/bundle_assets.py
 ASSETS_DIR     := assets
 COVER_SRC      := assets/screen.jpg
+# Published full size beside the release; the packed cover is derived from it.
+COVER_FULL     := $(COVER_SRC)
 LICENSE_TXT    := assets/license.txt
 
 CUPCAKE_TRACE_SD ?= 0
@@ -153,12 +155,22 @@ pack: $(TARGET_BIN) $(COVER_JPG) $(LICENSE_TXT)
 all: pack
 
 # Read-only helpers for CI / scripts.
-.PHONY: print-PROJECT_KIND print-PACKED_BIN print-CORE_NAME print-DOCKER_IMAGE \
+.PHONY: print-PROJECT_KIND print-PACKED_BIN print-SIDECARS print-RO_BIN print-CORE_NAME print-COVER_FULL print-DOCKER_IMAGE \
 	print-TARGET_ELF print-TARGET_MAP print-CORE_VERSION
 print-PROJECT_KIND:
 	@echo $(PROJECT_KIND)
 print-PACKED_BIN:
 	@echo $(PACKED_BIN)
+# Extra device files installed beside PACKED_BIN, space separated. Empty
+# here: only a project that installs a second device file sets it. RO_BIN
+# is the older single-slot spelling, read for every project so the shared
+# stage_release.py needs no per-project variant.
+print-SIDECARS:
+	@echo $(SIDECARS)
+print-RO_BIN:
+	@echo $(RO_BIN)
+print-COVER_FULL:
+	@echo $(COVER_FULL)
 print-CORE_NAME:
 	@echo $(CORE_NAME)
 print-DOCKER_IMAGE:
