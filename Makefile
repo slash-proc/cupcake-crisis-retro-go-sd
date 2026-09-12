@@ -28,6 +28,10 @@ COVER_SRC      := assets/screen.jpg
 # Published full size beside the release; the packed cover is derived from it.
 COVER_FULL     := $(COVER_SRC)
 LICENSE_TXT    := assets/license.txt
+# The RetroFab terms (CC-BY-NC-ND) oblige anyone redistributing the assets to
+# pass the document on in full. The shared staging script puts it in the
+# install zip and attaches it to the release.
+REDIST_DOCS    := $(LICENSE_TXT)
 
 CUPCAKE_TRACE_SD ?= 0
 
@@ -155,7 +159,7 @@ pack: $(TARGET_BIN) $(COVER_JPG) $(LICENSE_TXT)
 all: pack
 
 # Read-only helpers for CI / scripts.
-.PHONY: print-PROJECT_KIND print-PACKED_BIN print-SIDECARS print-RO_BIN print-CORE_NAME print-COVER_FULL print-DOCKER_IMAGE \
+.PHONY: print-PROJECT_KIND print-PACKED_BIN print-SIDECARS print-RO_BIN print-CORE_NAME print-COVER_FULL print-REDIST_DOCS print-DOCKER_IMAGE \
 	print-TARGET_ELF print-TARGET_MAP print-CORE_VERSION
 print-PROJECT_KIND:
 	@echo $(PROJECT_KIND)
@@ -171,6 +175,8 @@ print-RO_BIN:
 	@echo $(RO_BIN)
 print-COVER_FULL:
 	@echo $(COVER_FULL)
+print-REDIST_DOCS:
+	@echo $(REDIST_DOCS)
 print-CORE_NAME:
 	@echo $(CORE_NAME)
 print-DOCKER_IMAGE:

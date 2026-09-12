@@ -13,6 +13,19 @@ When you cut a release:
 CI reads the matching section and uses it as the GitHub Release notes. The tag
 is also used in staged asset names (`<binary>-<tag>.bin`, `<binary>-<tag>.zip`).
 
+## [v0.0.3] - 2026-09-12
+
+### Fixed
+
+- The RetroFab licence now travels with the release. `assets/license.txt` is
+  CC-BY-NC-ND and clause (g) requires the document be retained in its entirety
+  when the work is redistributed, but v0.0.2 shipped `homebrews/Cupcake.bin`
+  alone. It is now in the install zip as `Cupcake-license.txt` and attached to
+  the release, through the shared `REDIST_DOCS` mechanism.
+- The offline bundle carries every file the manifest names. `make_bundle.py`
+  kept its own copy of the file list and had not learned about shipped games;
+  nothing here ships one, so this release is unaffected in content.
+
 ## [v0.0.2] - 2026-09-11
 
 ### Added
